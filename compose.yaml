@@ -1,59 +1,43 @@
-version: '3.7'
-services:
-  proxy:
-    container_name: cat-pinterest-proxy
-    image: nginx:1.24-alpine-slim
-    volumes:
-      - type: bind
-        source: ./nginx.conf
-        target: /etc/nginx/nginx.conf
-        read_only: true
-    depends_on:
-      cat-pinterest-api:
-        condition: service_started
-    ports:
-      - "8080:80"
-    networks:
-      - cat-pinterest-net
+version: '3.8'
 
-  cat-pinterest-api:
-    container_name: cat-pinterest-api
-    image: cat-pinterest-api
-    build:
-      context: ./api/
-    networks:
-      - cat-pinterest-net
+services:
+  backend:
+    container_name: app-backend  # Уникальное имя
+    build: ./api
+    ports:
+      - "3000:3000"
     environment:
-      NODE_ENV: prod
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=1
+      - DB_NAME=support_lk_db
     depends_on:
-      cat-pinterest-api-pg:
+      db:
         condition: service_healthy
 
-  cat-pinterest-front:
-    container_name: cat-pinterest-front
-    image: cat-pinterest-front
-    build:
-      context: ./front/
-    networks:
-      - cat-pinterest-net
-    environment:
-      NODE_ENV: prod
+  frontend:
+    container_name: app-frontend  # Уникальное имя
+    build: ./front
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
 
-  cat-pinterest-api-pg:
-    container_name: cat-pinterest-api-pg
+  db:
+    container_name: app-db  # Уникальное имя
     image: postgres:14
-    networks:
-      - cat-pinterest-net
     environment:
       POSTGRES_PASSWORD: 1
       POSTGRES_USER: postgres
       POSTGRES_DB: support_lk_db
-    #      PG_DATA: /var/lib/postgresql/data
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
-      interval: 2s
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 5
 
-networks:
-  cat-pinterest-net:
+volumes:
+  postgres_data:
